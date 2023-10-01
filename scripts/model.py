@@ -1,25 +1,17 @@
-def forecast(sales: dict, item_info: dict, store_info: dict) -> list:
-    """
-    Функция для предсказания продажЖ
-    :params sales: исторические данные по продажам
-    :params item_info: характеристики товара
-    :params store_info: характеристики магазина
+import pandas as pd
+import pickle
+from datetime import date, timedelta
 
-    """
-    sales = [el["sales_units"] for el in sales]
-    mean_sale = sum(sales) / len(sales)
-    return [mean_sale] * 5
+with open('scaler.pkl', 'rb') as f_1:
+    SCALER = pickle.load(f_1)
 
-features = df.drop('target', axis=1)
-target = df.target
+with open('encoder.pkl', 'rb') as f_2:
+    ENCODER = pickle.load(f_2)
 
-train_features, test_features, train_target, test_target = train_test_split(
-    features,
-    target,
-    test_size=.25,
-    shuffle=False
-    )
-numerical = [
+with open('rf.pkl', 'rb') as f_3:
+    ESTIMATOR = pickle.load(f_3)
+
+NUMERICAL = [
     'holiday',
     'rolling_mean',
     'lag_14',
@@ -30,64 +22,59 @@ numerical = [
     'lag_19',
     'lag_20',
     'lag_21'
+]
+
+CATEG = [
+    'st_id',
+    'pr_sku_id',
+    'pr_group_id',
+    'pr_cat_id',
+    'pr_subcat_id',
+    'st_city_id',
+    'st_division_code',
+    'st_type_format_id',
+    'st_type_loc_id',
+    'st_type_size_id'
     ]
-scaler = RobustScaler()
-train_features[numerical] = scaler.fit_transform(train_features[numerical])
-test_features[numerical] = scaler.transform(test_features[numerical])
-tss = TimeSeriesSplit(n_splits=8)
-Код обучения модельки:
 
-rf_params = {
-    'n_estimators': list(range(100, 201)),
-    'max_depth': list(range(20, 51)),
-    'min_samples_leaf': list(range(5, 21)),
-    'max_features': [.3, .5, .7, 1, 'sqrt', 'log2']
-    }
-rf_model = RandomForestRegressor(random_state=SEED, criterion='squared_error')
-best_rf_model = TuneSearchCV(
-    rf_model,
-    rf_params,
-    scoring='neg_root_mean_squared_error',
-    cv=tss,
-    n_trials=100,
-    n_jobs=-1,
-    random_state=SEED,
-    search_optimization='hyperopt',
-    verbose=1
-    )
-best_rf_model.fit(train_features, train_target)
 
-import pickle
-from itertools import combinations
+LAST_DATE = date(2023, 7, 18)  # последняя дата из train
 
-import numpy as np
-import pandas as pd
 
-import plotly.express as px
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-from plotly.figure_factory import create_dendrogram
+def preprocessing(data: pd.DataFrame) -> pd.DataFrame:
+    """preprocess data for forecast.
+    !!! ToDO:
+    - add loading data from database and sales archive
+    - add lags calculation
+    - add holiday and weekend calculation
+    - add cluster matrix loading and cluster calculation
+    """
+    data = data.drop(['date'], axis=1)
+    data[CATEG] = ENCODER.transform(data[CATEG])
+    data[NUMERICAL] = SCALER.transform(data[NUMERICAL])
 
-import ydata_profiling as yp
-from scipy.cluster.hierarchy import linkage, fcluster
-from statsmodels.tsa.seasonal import seasonal_decompose
+    return data
 
-from tune_sklearn import TuneSearchCV
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.preprocessing import RobustScaler, OrdinalEncoder
-from sklearn.model_selection import train_test_split, TimeSeriesSplit
-from sklearn.inspection import permutation_importance
-from sklearn.metrics import mean_squared_error
 
-Это только для того, что выше кинул, по идее:
-
-import pickle
-
-import pandas as pd
-
-from tune_sklearn import TuneSearchCV
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.preprocessing import RobustScaler
-from sklearn.model_selection import train_test_split, TimeSeriesSplit
-
-SEED=333
+def forecast(path: str) -> list:
+    """forecast function
+    !!! ToDO:
+    - correct output format
+    """
+    info = pd.read_csv(path)
+    query = preprocessing(info)
+    result = []
+    for i in range(len(query)):
+        row = query.loc[i, :]
+        store = info.loc[i, 'st_id']
+        item = info.loc[i, 'pr_sku_id']
+        # forecast_dates = [LAST_DATE + timedelta(days=d) for d in range(1, 14)]
+        # forecast_dates = [el.strftime("%Y-%m-%d") for el in forecast_dates]
+        f_date = info.loc[i, 'date']
+        prediction = ESTIMATOR.predict(row)
+        result.append({"store": store,
+                       "forecast_date": f_date,
+                       "forecast": {"sku": item,
+                                    "sales_units": prediction}
+                      })
+    return result

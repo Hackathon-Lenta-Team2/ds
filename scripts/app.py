@@ -1,7 +1,6 @@
 import requests
 import os
 import logging
-from datetime import date, timedelta
 
 from model import forecast
 
@@ -62,25 +61,18 @@ def get_categs_info():
     return result
 
 
-def main(today=date.today()):
-    forecast_dates = [today + timedelta(days=d) for d in range(1, 6)]
-    forecast_dates = [el.strftime("%Y-%m-%d") for el in forecast_dates]
-    categs_info = get_categs_info()
-    for store in get_stores():
-        result = []
-        for item in get_sales(store=store["store"]):
-            item_info = categs_info[item["sku"]]
-            sales = item["fact"]
-            prediction = forecast(sales, item_info, store)
-            result.append({"store": store["store"],
-                           "forecast_date": today.strftime("%Y-%m-%d"),
-                           "forecast": {"sku": item["sku"],
-                                        "sales_units": {k: v for k, v in zip(forecast_dates, prediction)}
-                                        }
-                          })
-        requests.post(get_address(URL_FORECAST), json={"data": result})
+# Функции для работы с БД пока что не используются по причине отсутствия БД
+# Загрузка данных идет просто из тестового файла
+
+PATH = 'example.csv'  # для теста. имитация загрузки данных из БД по магазинам и товарам и архива продаж
+
+
+def main(path: str):
+    result = forecast(PATH)
+    # requests.post(get_address(URL_FORECAST), json={"data": result})
+    print(result)
 
 
 if __name__ == "__main__":
     setup_logging()
-    main()
+    main(PATH)
