@@ -1,7 +1,7 @@
 import requests
 import os
 import logging
-
+import json
 from model import forecast
 
 URL_CATEGORIES = "categories"
@@ -64,13 +64,13 @@ def get_categs_info():
 # Функции для работы с БД пока что не используются по причине отсутствия БД
 # Загрузка данных идет просто из тестового файла
 
-PATH = 'example.csv'  # для теста. имитация загрузки данных из БД по магазинам и товарам и архива продаж
+PATH = 'query_example.csv'  # для теста. имитация загрузки данных из БД по магазинам и товарам и архива продаж
 
 
 def main(path: str):
     result = forecast(PATH)
     # requests.post(get_address(URL_FORECAST), json={"data": result})
-    print(result)
+    json.dump(result, open('forecast_archive.json', 'w'))
 
 
 if __name__ == "__main__":

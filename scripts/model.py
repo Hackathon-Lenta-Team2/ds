@@ -4,6 +4,7 @@ import joblib
 import logging
 import numpy as np
 import warnings
+
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 m_logger = logging.getLogger(__name__)
@@ -44,10 +45,10 @@ CATEG = [
     'st_type_format_id',
     'st_type_loc_id',
     'st_type_size_id'
-    ]
-
+]
 
 LAST_DATE = date(2023, 7, 18)  # последняя дата из train
+FORECAST_STEP = 14  # длительность прогноза в будущее
 
 
 def preprocessing(data: pd.DataFrame) -> pd.DataFrame:
@@ -58,7 +59,7 @@ def preprocessing(data: pd.DataFrame) -> pd.DataFrame:
     - add holiday and weekend calculation
     - add cluster matrix loading and cluster calculation
     """
-    data = data.drop(['date', 'Unnamed: 0'], axis=1)
+    data = data.drop(['date', 'forecast_date'], axis=1)
     try:
         data[CATEG] = ENCODER.transform(data[CATEG])
         m_logger.info(f'data transformed')
@@ -71,23 +72,25 @@ def preprocessing(data: pd.DataFrame) -> pd.DataFrame:
 
 
 def forecast(path: str) -> list:
-    """forecast function
-    !!! ToDO:
-    - correct output format
-    """
-    info = pd.read_csv(path)
+    """forecast function"""
+    info = pd.read_csv(path, index_col=0)
+    steps = int(info.shape[0] / FORECAST_STEP)
     query = preprocessing(info)
-    predictions = np.around(ESTIMATOR.predict(query), 0)
     result = []
-    for i in range(len(predictions)):
-        store = info.loc[i, 'st_id']
-        item = info.loc[i, 'pr_sku_id']
-        # forecast_dates = [LAST_DATE + timedelta(days=d) for d in range(1, 14)]
-        # forecast_dates = [el.strftime("%Y-%m-%d") for el in forecast_dates]
-        f_date = info.loc[i, 'date']
+    for i in range(steps):
+        start = i * FORECAST_STEP
+        stop = (i + 1) * FORECAST_STEP
+        subquery = query[start:stop]
+        forecast_dates = info.loc[start:stop, 'forecast_date']
+        predictions = np.around(ESTIMATOR.predict(subquery), 0)
+        store = info.loc[start, 'st_id']
+        item = info.loc[start, 'pr_sku_id']
+        now_date = info.loc[start, 'date']
         result.append({"store": store,
-                       "forecast_date": f_date,
+                       "forecast_date": now_date,
                        "forecast": {"sku": item,
-                                    "sales_units": int(predictions[i])}
-                      })
+                                    "sales_units": {k: v for k, v in zip(forecast_dates, predictions)}
+                                    }
+                       })
+        i += 1
     return result
