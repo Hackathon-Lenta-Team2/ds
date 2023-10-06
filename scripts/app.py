@@ -1,78 +1,54 @@
-import requests
-import os
+import argparse
+import datetime
 import logging
 import json
+import uvicorn
+from fastapi import FastAPI
 from model import forecast
+import requests
 
-URL_CATEGORIES = "categories"
-URL_SALES = "sales"
-URL_STORES = "shops"
-URL_FORECAST = "forecast"
+app = FastAPI()
 
-api_port = os.environ.get("API_PORT", "8000")
-api_host = os.environ.get("API_PORT", "localhost")
+dataDir = 'tmp/'
 
-_logger = logging.getLogger(__name__)
-
-
-def setup_logging():
-    _logger = logging.getLogger(__name__)
-    _logger.setLevel(logging.DEBUG)
-    handler_m = logging.StreamHandler()
-    formatter_m = logging.Formatter("%(name)s %(asctime)s %(levelname)s %(message)s")
-    handler_m.setFormatter(formatter_m)
-    _logger.addHandler(handler_m)
+app_logger = logging.getLogger(__name__)
+app_logger.setLevel(logging.DEBUG)
+app_handler = logging.StreamHandler()
+app_formatter = logging.Formatter("%(name)s %(asctime)s %(levelname)s %(message)s")
+app_handler.setFormatter(app_formatter)
+app_logger.addHandler(app_handler)
 
 
-def get_address(resource):
-    return "http://" + api_host + ":" + api_port + "/" + resource
+@app.get("/ready")
+def forecast_ready():
+    pass
 
 
-def get_stores():
-    stores_url = get_address(URL_STORES)
-    resp = requests.get(stores_url)
+@app.get("/")
+def main(path='test_missing.csv') -> tuple:  # здесь должно быть нормальное получение файла / пути к файлу
+    """runs forecast and save result"""
+    app_logger.info(f'data successfully loaded')
+    result, status = forecast(path)
+    message = 'forecast successfully finished, results saved'
+    if status != 'OK':
+        app_logger.error(f'forecast failed')
+        message = 'forecast failed'
+    else:
+        app_logger.info(f'forecast finished')
+        with open(dataDir + 'forecast_archive.json', 'w') as file:
+            json.dump(result, file)
+            app_logger.info(f'data saved')
+    app_logger.info(message)
+    resp = requests.get("http://localhost:8001/ready")  # пока что запрос просто по какому-то адресу
+    result = {'date': datetime.datetime.now(), 'status': message}
     if resp.status_code != 200:
-        _logger.warning("Could not get stores list")
-        return []
-    return resp.json()["data"]
-
-
-def get_sales(store=None, sku=None):
-    sale_url = get_address(URL_SALES)
-    params = {}
-    if store is not None:
-        params["store"] = store
-    if sku is not None:
-        params["sku"] = sku
-    resp = requests.get(sale_url, params=params)
-    if resp.status_code != 200:
-        _logger.warning("Could not get sales history")
-        return []
-    return resp.json()["data"]
-
-
-def get_categs_info():
-    categs_url = get_address(URL_CATEGORIES)
-    resp = requests.get(categs_url)
-    if resp.status_code != 200:
-        _logger.warning("Could not get category info")
-        return {}
-    result = {el["sku"]: el for el in resp.json()["data"]}
-    return result
-
-
-# Функции для работы с БД пока что не используются по причине отсутствия БД
-# Загрузка данных идет просто из тестового файла
-
-PATH = 'query_example.csv'  # для теста. имитация загрузки данных из БД по магазинам и товарам и архива продаж
-
-
-def main(path: str):
-    result = forecast(PATH)
-    # requests.post(get_address(URL_FORECAST), json={"data": result})
-    json.dump(result, open('forecast_archive.json', 'w'))
+        result = 'something wrong'
+    return result, resp.status_code
 
 
 if __name__ == "__main__":
-    setup_logging()
-    main(PATH)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--port", default=8001, type=int, dest="port")
+    parser.add_argument("--host", default="0.0.0.0", type=str, dest="host")
+    args = vars(parser.parse_args())
+    uvicorn.run(app, **args)
