@@ -3,4 +3,5 @@ venv/
 __pycache__/
 *.pdf
 scripts/rf.pkl
-scripts/rf.joblib
+scripts/src/rf.joblib
+old_data/

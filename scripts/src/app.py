@@ -3,7 +3,7 @@ import datetime
 import logging
 import json
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, BackgroundTasks
 from model import forecast
 import requests
 
@@ -19,16 +19,10 @@ app_handler.setFormatter(app_formatter)
 app_logger.addHandler(app_handler)
 
 
-@app.get("/ready")
-def forecast_ready():
-    pass
-
-
-@app.get("/")
-def main(path='test_missing.csv') -> tuple:  # здесь должно быть нормальное получение файла / пути к файлу
+def make_forecast(path: str) -> tuple:
     """runs forecast and save result"""
     app_logger.info(f'data successfully loaded')
-    result, status = forecast(path)
+    result, status, problem_pairs = forecast(path)
     message = 'forecast successfully finished, results saved'
     if status != 'OK':
         app_logger.error(f'forecast failed')
@@ -39,11 +33,26 @@ def main(path='test_missing.csv') -> tuple:  # здесь должно быть 
             json.dump(result, file)
             app_logger.info(f'data saved')
     app_logger.info(message)
-    resp = requests.get("http://localhost:8001/ready")  # пока что запрос просто по какому-то адресу
-    result = {'date': datetime.datetime.now(), 'status': message}
+    resp = requests.get("http://localhost:8001/ds/ready")
+    # resp = requests.get("http://localhost/api/v1/import-data/")
+    result = {'date': datetime.datetime.now(), 'status': message, 'problem pairs number': problem_pairs}
     if resp.status_code != 200:
         result = 'something wrong'
+    print(result)
+    print(resp.status_code)
     return result, resp.status_code
+
+
+@app.get("/ds/ready")
+def forecast_ready():
+    pass
+
+
+@app.get("/ds/start")
+async def main(background_tasks: BackgroundTasks) -> dict:
+    """running forecast in background"""
+    background_tasks.add_task(make_forecast, path=dataDir + 'ds_data.csv')
+    return {"message": "forecast is running. wait please"}
 
 
 if __name__ == "__main__":

@@ -20,7 +20,7 @@ SCALER = joblib.load('scaler.save')
 ENCODER = joblib.load('encoder.save')
 
 # ESTIMATOR = joblib.load('rf.joblib')
-m_logger.info(f'model loaded')
+# m_logger.info(f'model loaded')
 
 NUMERICAL = [
     'holiday',
@@ -48,8 +48,8 @@ CATEG = [
     'st_type_size_id'
 ]
 
-LAST_DATE = date(2023, 7, 18)  # последняя дата из train
-FORECAST_STEP = 14  # длительность прогноза в будущее
+LAST_DATE = date(2023, 7, 18)  # last date from train data
+FORECAST_STEP = 14  # number of forecast days
 
 
 def collect(df: pd.DataFrame, raw_data: pd.DataFrame) -> pd.DataFrame:
@@ -77,10 +77,10 @@ def collect(df: pd.DataFrame, raw_data: pd.DataFrame) -> pd.DataFrame:
     extend_df[df_columns] = df[column[1:12]]
 
     extend_df['day_of_week'] = extend_df['date'].dt.weekday
-    extend_df['weekend'] = 0
-    extend_df.loc[(extend_df['day_of_week'] == 5) | (extend_df['day_of_week'] == 6), 'weekend'] = 1
+    extend_df['is_weekend'] = 0
+    extend_df.loc[(extend_df['day_of_week'] == 5) | (extend_df['day_of_week'] == 6), 'is_weekend'] = 1
 
-    extend_df['day'] = extend_df['date'].dt.day
+    extend_df['day_of_month'] = extend_df['date'].dt.day
 
     holiday = ['11.04.2022', '12.31.2022', '01.07.2023', '02.23.2023', '03.08.2023', '04.16.2023', '05.01.2023',
                '05.09.2023', '06.12.2023']
@@ -117,10 +117,10 @@ def collect(df: pd.DataFrame, raw_data: pd.DataFrame) -> pd.DataFrame:
                            'st_type_format_id',
                            'st_type_loc_id',
                            'st_type_size_id',
-                           'day_of_week',
-                           'weekend',
-                           'day',
                            'holiday',
+                           'day_of_week',
+                           'day_of_month',
+                           'is_weekend',
                            'lag_14',
                            'lag_15',
                            'lag_16',
@@ -141,14 +141,13 @@ def preprocessing(data: pd.DataFrame) -> pd.DataFrame:
     return data
 
 
-# noinspection PyGlobalUndefined
 def forecast(path: str) -> (list, str):
     """forecast function"""
     info = pd.read_csv(path)
     for col in info.columns:
         if 'lag' in col:
             info[col] = info[col].astype('float')
-    info = info[900:1000].reset_index(drop=True)  # 100 rows with missing values  for test
+    info = info.reset_index(drop=True)  # change number of rows for tests
     steps = int(info.shape[0])
     data_collected = pd.DataFrame()
     for j in range(len(info)):
@@ -159,6 +158,8 @@ def forecast(path: str) -> (list, str):
     query = preprocessing(data_collected)
     m_logger.info(f'data scaled and transformed')
     result = []
+    status = 'OK'
+    problem_pair_counter = 0
     for i in range(steps):
         start = i * FORECAST_STEP
         stop = (i + 1) * FORECAST_STEP
@@ -166,11 +167,18 @@ def forecast(path: str) -> (list, str):
         subquery = query[start:stop]
         subquery = subquery.dropna(axis=0)
         if len(subquery) == FORECAST_STEP:
-            predictions = np.random.randint(14, 88, len(subquery))
-            # predictions = np.around(ESTIMATOR.predict(subquery), 0)
+            try:
+                predictions = np.random.randint(14, 88, len(subquery))
+                # predictions = np.around(ESTIMATOR.predict(subquery), 0)
+            except ValueError:
+                m_logger.error(f'estimator fail')
+                predictions = np.zeros(FORECAST_STEP, dtype=np.uint8)
+                status = 'FAIL'
+                pass
         else:
             predictions = np.zeros(FORECAST_STEP, dtype=np.uint8)
             m_logger.warning(f'for some store-product pairs there is no data to make forecast')
+            problem_pair_counter += 1
         store = info.loc[i, 'store_id']
         item = info.loc[i, 'pr_sku_id']
         now_date = info.loc[i, 'date_today']
@@ -182,5 +190,5 @@ def forecast(path: str) -> (list, str):
                        })
         i += 1
     m_logger.info(f'prediction finished')
-    status = 'OK'
-    return result, status
+
+    return result, status, problem_pair_counter
