@@ -5,7 +5,7 @@
 - /scripts - заготовки исполняемых файлов с инференсом модели
   - encoder.pkl, scaler.pkl - энкодер и скейлер для предобработки данных
   - example.csv - часть submissions.csv для тестов
-  - обученная модель лежит [здесь](https://drive.google.com/file/d/1I1OGTXGept7C6tSjJRwQnR6EJqjpyQZn/view?usp=sharing)
+  - обученная модель лежит [здесь](https://drive.google.com/file/d/1_hg6Ik4bL5PoKDJzi39wJ1R5K67L0H8K/view?usp=sharing)
 - /notebooks - воспроизводимый код модели в jupiter и результаты предсказаний для файла sales_submission.csv
 _________
 
