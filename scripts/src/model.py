@@ -19,8 +19,8 @@ SCALER = joblib.load('scaler.save')
 
 ENCODER = joblib.load('encoder.save')
 
-# ESTIMATOR = joblib.load('rf.joblib')
-# m_logger.info(f'model loaded')
+ESTIMATOR = joblib.load('rf.joblib')
+m_logger.info(f'model loaded')
 
 NUMERICAL = [
     'holiday',
@@ -168,8 +168,8 @@ def forecast(path: str) -> (list, str):
         subquery = subquery.dropna(axis=0)
         if len(subquery) == FORECAST_STEP:
             try:
-                predictions = np.random.randint(14, 88, len(subquery))
-                # predictions = np.around(ESTIMATOR.predict(subquery), 0)
+                # predictions = np.random.randint(14, 88, len(subquery))  # for tests
+                predictions = np.around(ESTIMATOR.predict(subquery), 0)
             except ValueError:
                 m_logger.error(f'estimator fail')
                 predictions = np.zeros(FORECAST_STEP, dtype=np.uint8)
