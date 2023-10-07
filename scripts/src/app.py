@@ -33,8 +33,8 @@ def make_forecast(path: str) -> tuple:
             json.dump(result, file)
             app_logger.info(f'data saved')
     app_logger.info(message)
-    resp = requests.get("http://localhost:8001/ds/ready")
-    # resp = requests.get("http://localhost/api/v1/import-data/")
+    # resp = requests.get("http://localhost:8001/ds/ready")  # for local tests
+    resp = requests.get("http://localhost/api/v1/import-data/")
     result = {'date': datetime.datetime.now(), 'status': message, 'problem pairs number': problem_pairs}
     if resp.status_code != 200:
         result = 'something wrong'
