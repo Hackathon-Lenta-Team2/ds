@@ -129,10 +129,10 @@ def collect(df: pd.DataFrame, raw_data: pd.DataFrame) -> pd.DataFrame:
 def preprocessing(data: pd.DataFrame) -> pd.DataFrame:
     """preprocess data for forecast"""
     data = data.drop(['date'], axis=1)
-    SCALER = joblib.load('scaler.save')
-    ENCODER = joblib.load('encoder.save')
-    data[CATEG] = ENCODER.transform(data[CATEG])
-    data[NUMERICAL] = SCALER.transform(data[NUMERICAL])
+    scaler = joblib.load('scaler.save')
+    encoder = joblib.load('encoder.save')
+    data[CATEG] = encoder.transform(data[CATEG])
+    data[NUMERICAL] = scaler.transform(data[NUMERICAL])
     return data
 
 
@@ -142,9 +142,9 @@ def forecast(path: str) -> (list, str):
     for col in info.columns:
         if 'lag' in col:
             info[col] = info[col].astype('float')
-    info = info[100:200].reset_index(drop=True)  # change number of rows for tests
     info = info.loc[(info['store_id'] != "1aa057313c28fa4a40c5bc084b11d276") &
                     (info['store_id'] != "62f91ce9b820a491ee78c108636db089")]
+    info = info.reset_index(drop=True)  # change number of rows for tests
     steps = int(info.shape[0])
     data_collected = pd.DataFrame()
     for j in range(len(info)):
@@ -154,7 +154,7 @@ def forecast(path: str) -> (list, str):
     f_dates = data_collected['date'].astype('str')
     query = preprocessing(data_collected)
     m_logger.info(f'data scaled and transformed')
-    ESTIMATOR = joblib.load('rf.joblib')
+    estimator = joblib.load('rf.joblib')
     m_logger.info(f'model loaded')
     result = []
     status = 'OK'
@@ -168,7 +168,7 @@ def forecast(path: str) -> (list, str):
         if len(subquery) == FORECAST_STEP:
             try:
                 # predictions = np.random.randint(14, 88, len(subquery))  # for tests
-                predictions = np.around(ESTIMATOR.predict(subquery), 0)
+                predictions = np.around(estimator.predict(subquery), 0)
             except ValueError:
                 m_logger.error(f'estimator fail')
                 predictions = np.zeros(FORECAST_STEP, dtype=np.uint8)
