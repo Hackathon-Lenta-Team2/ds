@@ -15,13 +15,6 @@ formatter_m = logging.Formatter("%(name)s %(asctime)s %(levelname)s %(message)s"
 handler_m.setFormatter(formatter_m)
 m_logger.addHandler(handler_m)
 
-SCALER = joblib.load('scaler.save')
-
-ENCODER = joblib.load('encoder.save')
-
-ESTIMATOR = joblib.load('rf.joblib')
-m_logger.info(f'model loaded')
-
 NUMERICAL = [
     'holiday',
     'rolling_mean',
@@ -101,9 +94,9 @@ def collect(df: pd.DataFrame, raw_data: pd.DataFrame) -> pd.DataFrame:
     raw_data['crutch'] = 0
     column = raw_data.columns
     for i in range(14):
-        extend_df.loc[i, lag] = df[column[-22 + i:-14 + i]].values
+        extend_df.loc[i, lag] = df[column[-9-i:-1-i]].values
 
-    extend_df['rolling_mean'] = extend_df[lag].mean(axis=1).values
+    extend_df['rolling_mean'] = extend_df[lag[:-1]].mean(axis=1).values
 
     extend_df = extend_df[['date',
                            'st_id',
@@ -136,6 +129,8 @@ def collect(df: pd.DataFrame, raw_data: pd.DataFrame) -> pd.DataFrame:
 def preprocessing(data: pd.DataFrame) -> pd.DataFrame:
     """preprocess data for forecast"""
     data = data.drop(['date'], axis=1)
+    SCALER = joblib.load('scaler.save')
+    ENCODER = joblib.load('encoder.save')
     data[CATEG] = ENCODER.transform(data[CATEG])
     data[NUMERICAL] = SCALER.transform(data[NUMERICAL])
     return data
@@ -147,7 +142,9 @@ def forecast(path: str) -> (list, str):
     for col in info.columns:
         if 'lag' in col:
             info[col] = info[col].astype('float')
-    info = info.reset_index(drop=True)  # change number of rows for tests
+    info = info[100:200].reset_index(drop=True)  # change number of rows for tests
+    info = info.loc[(info['store_id'] != "1aa057313c28fa4a40c5bc084b11d276") &
+                    (info['store_id'] != "62f91ce9b820a491ee78c108636db089")]
     steps = int(info.shape[0])
     data_collected = pd.DataFrame()
     for j in range(len(info)):
@@ -157,6 +154,8 @@ def forecast(path: str) -> (list, str):
     f_dates = data_collected['date'].astype('str')
     query = preprocessing(data_collected)
     m_logger.info(f'data scaled and transformed')
+    ESTIMATOR = joblib.load('rf.joblib')
+    m_logger.info(f'model loaded')
     result = []
     status = 'OK'
     problem_pair_counter = 0
