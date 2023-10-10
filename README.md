@@ -10,7 +10,7 @@
   - обученная модель лежит [здесь](https://drive.google.com/file/d/1_hg6Ik4bL5PoKDJzi39wJ1R5K67L0H8K/view?usp=sharing)
 - /notebooks - jupiter-ноутбуки с экспериментами и результаты предсказаний для файла sales_submission.csv
   - /drafts - черновики ноутбуков с различными рассмотренными моделями
-  -  demand_forecast_for_lenta_skus.ipynb - финальный ноутбук
+  -  demand_forecast_for_lenta_skus.ipynb - финальный ноутбук (без запуска можно увидеть на [nbviewer](https://nbviewer.org/github/Hackathon-Lenta-Team2/ds/blob/9e2f47aff284f2b6ab2937f56f12302dc867285a/notebooks/demand_forecast_for_lenta_skus.ipynb)
   -  sales_submission.csv - результаты тестовых предсказаний
 _________
 
