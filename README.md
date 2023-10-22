@@ -35,6 +35,12 @@ _________
 - выводится статус, что выполняется прогноз, в это время в фоновом режиме выполняется функция make_forecast() из app.py
 - по окончании прогноза результат сохраняется в scripts/scr/tmp/forecast_archive.json
 - отправляется get-запрос по адресу ```http://localhost:8001/ds/ready```
+
+**Upd**
+Модель также доступна на DockerHub
+```bash
+docker pull fdkonovalenko/lenta-timeseries:latest
+```
 ____________________
 ## Особенности данных
 
